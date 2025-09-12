@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Background Remover - Hapus Background Gambar</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4a5568;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .upload-area {
+            border: 3px dashed #cbd5e0;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: linear-gradient(45deg, #f7fafc, #edf2f7);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: linear-gradient(45deg, #e6fffa, #f0fff4);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-area.dragover {
+            border-color: #48bb78;
+            background: linear-gradient(45deg, #f0fff4, #e6fffa);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #a0aec0;
+            margin-bottom: 20px;
+            display: block;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
+            }
+            40% {
+                transform: translateY(-10px);
+            }
+            60% {
+                transform: translateY(-5px);
+            }
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .upload-subtext {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #48bb78, #38a169);
+            color: white;
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.6);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .preview-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .preview-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .preview-container h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #4a5568;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .preview-container canvas,
+        .preview-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .preview-container canvas:hover,
+        .preview-container img:hover {
+            transform: scale(1.02);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #e2e8f0;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #feb2b2;
+            display: none;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #9ae6b4;
+            display: none;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .preview-area {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 250px;
+            }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Background Remover</h1>
+        
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()" ondrop="dropHandler(event);" ondragover="dragOverHandler(event);" ondragenter="dragEnterHandler(event);" ondragleave="dragLeaveHandler(event);">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">Klik untuk pilih gambar atau drag & drop</div>
+            <div class="upload-subtext">Mendukung format: JPG, PNG, WEBP (Maks. 10MB)</div>
+            <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])">
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                📁 Pilih Gambar
+            </button>
+            <button class="btn btn-secondary" id="processBtn" onclick="removeBackground()" disabled>
+                ✨ Hapus Background
+            </button>
+            <button class="btn btn-secondary" id="downloadBtn" onclick="downloadResult()" disabled style="display: none;">
+                💾 Download Hasil
+            </button>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="error" id="errorMsg"></div>
+        <div class="success" id="successMsg"></div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Sedang memproses gambar...</p>
+        </div>
+
+        <div class="preview-area" id="previewArea" style="display: none;">
+            <div class="preview-container">
+                <h3>🖼️ Gambar Asli</h3>
+                <canvas id="originalCanvas"></canvas>
+            </div>
+            <div class="preview-container">
+                <h3>✨ Hasil (Background Dihapus)</h3>
+                <canvas id="resultCanvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let originalImage = null;
+        let processedCanvas = null;
+        let processedImageData = null; // Simpan hasil background removal untuk download
+
+        // Drag and drop handlers
+        function dragOverHandler(ev) {
+            ev.preventDefault();
+        }
+
+        function dragEnterHandler(ev) {
+            ev.preventDefault();
+            ev.target.closest('.upload-area').classList.add('dragover');
+        }
+
+        function dragLeaveHandler(ev) {
+            ev.preventDefault();
+            ev.target.closest('.upload-area').classList.remove('dragover');
+        }
+
+        function dropHandler(ev) {
+            ev.preventDefault();
+            ev.target.closest('.upload-area').classList.remove('dragover');
+            
+            const dt = ev.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFile(file) {
+            if (!file) return;
+
+            // Reset state untuk gambar baru
+            processedCanvas = null;
+            processedImageData = null;
+            document.getElementById('downloadBtn').disabled = true;
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('previewArea').style.display = 'none';
+
+            // Validasi file
+            if (!file.type.startsWith('image/')) {
+                showError('File harus berupa gambar!');
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                showError('Ukuran file tidak boleh lebih dari 10MB!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    originalImage = img;
+                    displayOriginalImage();
+                    document.getElementById('processBtn').disabled = false;
+                    hideMessages();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function displayOriginalImage() {
+            const canvas = document.getElementById('originalCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size
+            const maxWidth = 400;
+            const maxHeight = 400;
+            let { width, height } = originalImage;
+            
+            if (width > height) {
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                }
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            ctx.drawImage(originalImage, 0, 0, width, height);
+            
+            document.getElementById('previewArea').style.display = 'grid';
+        }
+
+        function removeBackground() {
+            if (!originalImage) return;
+
+            showLoading();
+            document.getElementById('processBtn').disabled = true;
+            
+            setTimeout(() => {
+                try {
+                    processImageWithChromaKey();
+                    showSuccess('Background berhasil dihapus!');
+                    document.getElementById('downloadBtn').disabled = false;
+                    document.getElementById('downloadBtn').style.display = 'inline-block';
+                } catch (error) {
+                    showError('Terjadi kesalahan saat memproses gambar.');
+                    console.error(error);
+                } finally {
+                    hideLoading();
+                    document.getElementById('processBtn').disabled = false;
+                }
+            }, 500);
+        }
+
+        function processImageWithChromaKey() {
+            const resultCanvas = document.getElementById('resultCanvas');
+            const ctx = resultCanvas.getContext('2d');
+            
+            // Set canvas size sama dengan original
+            const originalCanvas = document.getElementById('originalCanvas');
+            resultCanvas.width = originalCanvas.width;
+            resultCanvas.height = originalCanvas.height;
+            
+            // Draw original image
+            ctx.drawImage(originalCanvas, 0, 0);
+            
+            // Get image data
+            const imageData = ctx.getImageData(0, 0, resultCanvas.width, resultCanvas.height);
+            const data = imageData.data;
+            
+            // Simple background removal algorithm
+            // Deteksi warna yang dominan di tepi sebagai background
+            const cornerPixels = [];
+            const w = resultCanvas.width;
+            const h = resultCanvas.height;
+            
+            // Sample pixels dari keempat sudut dan tepi
+            const samplePoints = [
+                [0, 0], [w-1, 0], [0, h-1], [w-1, h-1], // corners
+                [Math.floor(w/2), 0], [Math.floor(w/2), h-1], // top and bottom center
+                [0, Math.floor(h/2)], [w-1, Math.floor(h/2)] // left and right center
+            ];
+            
+            for (let point of samplePoints) {
+                const x = point[0];
+                const y = point[1];
+                const idx = (y * w + x) * 4;
+                cornerPixels.push({
+                    r: data[idx],
+                    g: data[idx + 1],
+                    b: data[idx + 2]
+                });
+            }
+            
+            // Hitung rata-rata warna background
+            const avgBg = {
+                r: cornerPixels.reduce((sum, p) => sum + p.r, 0) / cornerPixels.length,
+                g: cornerPixels.reduce((sum, p) => sum + p.g, 0) / cornerPixels.length,
+                b: cornerPixels.reduce((sum, p) => sum + p.b, 0) / cornerPixels.length
+            };
+            
+            // Remove background
+            const tolerance = 50; // Adjust this for sensitivity
+            
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                
+                // Calculate distance from background color
+                const distance = Math.sqrt(
+                    Math.pow(r - avgBg.r, 2) +
+                    Math.pow(g - avgBg.g, 2) +
+                    Math.pow(b - avgBg.b, 2)
+                );
+                
+                // If pixel is similar to background color, make it transparent
+                if (distance < tolerance) {
+                    data[i + 3] = 0; // Set alpha to 0 (transparent)
+                } else {
+                    // Edge detection and feathering for better results
+                    const alpha = Math.min(255, Math.max(0, (distance - tolerance/2) * 5));
+                    data[i + 3] = alpha;
+                }
+            }
+            
+            // Apply processed image data
+            ctx.putImageData(imageData, 0, 0);
+            // Simpan hasil imageData sebelum checkerboard untuk download
+            processedImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+            processedCanvas = resultCanvas;
+            
+            // Add checkerboard background to show transparency
+            addCheckerboardBackground();
+        }
+
+        function addCheckerboardBackground() {
+            const canvas = document.getElementById('resultCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Create temporary canvas with checkerboard
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            
+            // Draw checkerboard pattern
+            const squareSize = 20;
+            for (let x = 0; x < canvas.width; x += squareSize) {
+                for (let y = 0; y < canvas.height; y += squareSize) {
+                    const isEven = (Math.floor(x / squareSize) + Math.floor(y / squareSize)) % 2 === 0;
+                    tempCtx.fillStyle = isEven ? '#f0f0f0' : '#e0e0e0';
+                    tempCtx.fillRect(x, y, squareSize, squareSize);
+                }
+            }
+            
+            // Draw processed image on top
+            tempCtx.drawImage(canvas, 0, 0);
+            
+            // Replace canvas content
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(tempCanvas, 0, 0);
+        }
+
+        function downloadResult() {
+            if (!processedCanvas || !processedImageData) return;
+            
+            // Buat canvas baru untuk download hasil transparan
+            const downloadCanvas = document.createElement('canvas');
+            const downloadCtx = downloadCanvas.getContext('2d');
+            downloadCanvas.width = processedCanvas.width;
+            downloadCanvas.height = processedCanvas.height;
+            
+            // Gunakan processedImageData yang sudah disimpan (hasil background removal tanpa checkerboard)
+            downloadCtx.putImageData(processedImageData, 0, 0);
+            
+            // Download sebagai PNG transparan
+            downloadCanvas.toBlob(function(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'background-removed.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('progressBar').style.display = 'block';
+            
+            // Simulate progress
+            let progress = 0;
+            const progressFill = document.getElementById('progressFill');
+            const interval = setInterval(() => {
+                progress += Math.random() * 30;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                progressFill.style.width = progress + '%';
+            }, 100);
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('progressBar').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMsg');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            setTimeout(() => {
+                successDiv.style.display = 'none';
+            }, 3000);
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMsg').style.display = 'none';
+            document.getElementById('successMsg').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
