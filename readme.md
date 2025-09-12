@@ -12,7 +12,10 @@ Aplikasi web sederhana dan cepat untuk menghapus background gambar secara otomat
 - 🚀 **Proses Cepat**: Penghapusan background dalam hitungan detik
 - 📁 **Upload Fleksibel**: Mendukung drag & drop atau klik untuk memilih file
 - 🖼️ **Pratinjau Real-time**: Lihat gambar asli dan hasil side-by-side
-- 🎯 **Akurat**: Algoritma deteksi warna dominan untuk hasil optimal
+- 🎯 **Akurat & Presisi**: Algoritma deteksi warna dominan dengan morphological operations
+- ✏️ **Editing Manual**: Tools pen dan eraser untuk fine-tuning hasil
+- 🎨 **Kontrol Brush**: Sesuaikan ukuran brush dan sensitivitas
+- ↩️ **Undo/Redo**: Kembalikan perubahan dengan mudah
 - 💾 **Download Mudah**: Simpan hasil sebagai PNG transparan
 - 📱 **Responsif**: UI modern yang bekerja di desktop dan mobile
 - 🔒 **Privasi Aman**: Semua proses berjalan di browser, data tidak dikirim ke server
@@ -53,11 +56,21 @@ Aplikasi web sederhana dan cepat untuk menghapus background gambar secara otomat
      npx http-server
      ```
 
-3. **Mulai Menggunakan**
+3. **Proses Gambar**
    - Klik area upload atau drag & drop gambar
-   - Tunggu gambar diproses
-   - Klik "Hapus Background"
-   - Download hasil sebagai PNG transparan
+   - Tunggu gambar diproses otomatis
+   - Klik "Manual" untuk editing lebih lanjut
+
+4. **Editing Manual (Opsional)**
+   - **Pen Tool**: Klik untuk menghapus area yang tidak terdeteksi
+   - **Eraser Tool**: Klik untuk memulihkan area yang terhapus salah
+   - **Brush Size**: Sesuaikan ukuran kuas untuk presisi
+   - **Tolerance**: Atur sensitivitas deteksi warna
+   - **Undo/Redo**: Kembalikan perubahan jika diperlukan
+
+5. **Download Hasil**
+   - Klik "Download Hasil" untuk menyimpan sebagai PNG transparan
+   - File akan tersimpan dengan background transparan
 
 ### Format File yang Didukung
 - **JPG/JPEG**: Format gambar kompresi
@@ -67,18 +80,27 @@ Aplikasi web sederhana dan cepat untuk menghapus background gambar secara otomat
 
 ## 🔧 Cara Kerja Algoritma
 
-Aplikasi ini menggunakan algoritma sederhana namun efektif:
+Aplikasi ini menggunakan algoritma canggih untuk hasil yang lebih presisi:
 
-1. **Deteksi Background**: Mengambil sampel warna dari sudut dan tepi gambar
-2. **Analisis Warna**: Menghitung rata-rata warna background dominan
-3. **Penghapusan**: Membandingkan setiap piksel dengan warna background
-4. **Feathering**: Menerapkan efek halus pada tepi untuk hasil natural
-5. **Transparansi**: Mengubah piksel background menjadi transparan
+1. **Deteksi Background Enhanced**: Mengambil sampel warna dari sudut, tepi, dan titik strategis lainnya
+2. **Analisis Warna Weighted**: Menghitung rata-rata warna background dengan bobot yang berbeda
+3. **Pembuatan Mask**: Membuat mask biner dengan kontrol tolerance yang dapat disesuaikan
+4. **Morphological Operations**: Menerapkan dilate dan erode untuk membersihkan mask
+5. **Feathering**: Menerapkan smoothing pada tepi untuk hasil natural
+6. **Editing Manual**: Tools pen dan eraser untuk fine-tuning hasil
 
 ### Parameter Algoritma
-- **Tolerance**: 50 (sensitivitas deteksi warna)
-- **Sample Points**: 8 titik (sudut dan tengah tepi)
-- **Feathering**: Distance-based alpha blending
+- **Tolerance**: 10-100 (sensitivitas deteksi warna)
+- **Brush Size**: 5-50px (untuk editing manual)
+- **Sample Points**: 13 titik strategis untuk deteksi background
+- **Morphological Kernel**: 3x3 untuk operasi dilate/erode
+- **History Limit**: 20 state untuk undo/redo
+
+### Tools Editing Manual
+- **Pen Tool**: Menghapus area yang dipilih (membuat transparan)
+- **Eraser Tool**: Memulihkan area yang terhapus (membuat opaque)
+- **Brush Size Control**: Mengatur ukuran kuas untuk presisi
+- **Tolerance Slider**: Mengatur sensitivitas deteksi warna
 
 ## 📖 Contoh Penggunaan
 
@@ -104,16 +126,35 @@ Hasil: Foto profil dengan background transparan
 - Pastikan background memiliki warna yang konsisten
 - Coba gambar dengan kontras yang lebih tinggi
 - Gunakan gambar dengan resolusi yang lebih baik
+- Sesuaikan tolerance slider ke nilai yang lebih rendah
 
 **❌ Hasil download tidak transparan**
 - Pastikan browser mendukung Canvas API
 - Coba refresh halaman dan ulangi proses
 - Gunakan browser terbaru
+- Pastikan tidak ada masalah dengan editing manual
+
+**❌ Tools editing tidak berfungsi**
+- Pastikan mode "Manual" sudah aktif
+- Coba refresh halaman jika ada masalah JavaScript
+- Pastikan browser mendukung event listeners
+- Gunakan mouse atau touch yang kompatibel
+
+**❌ Undo/Redo tidak berfungsi**
+- Pastikan sudah melakukan editing manual terlebih dahulu
+- History terbatas pada 20 langkah terakhir
+- Jika history penuh, langkah tertua akan dihapus
 
 **❌ Aplikasi lambat atau crash**
 - Kurangi ukuran gambar (maksimal 10MB)
 - Tutup tab browser lain
 - Restart browser
+- Kurangi brush size untuk performa lebih baik
+
+**❌ Pen tool menghapus area yang salah**
+- Kurangi tolerance untuk sensitivitas yang lebih rendah
+- Gunakan brush size yang lebih kecil
+- Gunakan eraser tool untuk memperbaiki kesalahan
 
 **❌ Drag & drop tidak berfungsi**
 - Gunakan tombol "Pilih Gambar" sebagai alternatif
@@ -148,9 +189,11 @@ for (let i = 0; i < data.length; i += 4) {
 
 ### Browser APIs yang Digunakan
 - **File API**: Untuk membaca file gambar
-- **Canvas API**: Untuk manipulasi gambar
+- **Canvas API**: Untuk manipulasi gambar dan drawing manual
 - **Blob API**: Untuk membuat file download
 - **URL API**: Untuk generate download link
+- **Pointer Events**: Untuk interaksi mouse dan touch
+- **ImageData API**: Untuk pemrosesan piksel tingkat rendah
 
 ## 🤝 Kontribusi
 
@@ -163,12 +206,19 @@ Kontribusi sangat diterima! Silakan ikuti langkah berikut:
 5. Buat Pull Request
 
 ### Area yang Bisa Dikembangkan
-- [ ] Algoritma penghapusan background yang lebih canggih
-- [ ] Dukungan untuk format gambar tambahan
-- [ ] Batch processing untuk multiple images
-- [ ] Integration dengan WebAssembly untuk performa lebih baik
-- [ ] UI/UX improvements
-- [ ] PWA (Progressive Web App) features
+- [x] **Manual Editing Tools**: Pen dan eraser untuk fine-tuning
+- [x] **Enhanced Algorithm**: Morphological operations dan feathering
+- [x] **Undo/Redo System**: History management untuk editing
+- [x] **Brush Size Control**: Kontrol ukuran kuas yang dapat disesuaikan
+- [x] **Tolerance Slider**: Kontrol sensitivitas deteksi warna
+- [ ] **Batch Processing**: Proses multiple images sekaligus
+- [ ] **AI-Powered Detection**: Menggunakan machine learning untuk deteksi yang lebih baik
+- [ ] **Shape Tools**: Rectangle, circle, dan lasso selection
+- [ ] **Layer System**: Multiple layers untuk editing kompleks
+- [ ] **Filter Effects**: Blur, sharpen, dan efek lainnya
+- [ ] **Export Options**: Format JPG, WebP, dan SVG
+- [ ] **Cloud Integration**: Upload ke cloud storage
+- [ ] **PWA Features**: Install sebagai aplikasi native
 
 ## 📄 Lisensi
 

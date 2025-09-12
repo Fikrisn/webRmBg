@@ -2,6 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="logo.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Background Remover - Hapus Background Gambar</title>
     <style>
@@ -107,6 +108,64 @@
             flex-wrap: wrap;
         }
 
+        .tool-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .tool-group {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .tool-btn {
+            padding: 8px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 25px;
+            background: white;
+            color: #4a5568;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .tool-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .tool-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .brush-size {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brush-size input {
+            width: 80px;
+        }
+
+        .tolerance-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tolerance-control input {
+            width: 80px;
+        }
+
         .btn {
             padding: 12px 24px;
             border: none;
@@ -195,11 +254,16 @@
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
+            cursor: crosshair;
         }
 
         .preview-container canvas:hover,
         .preview-container img:hover {
             transform: scale(1.02);
+        }
+
+        .preview-container canvas.drawing {
+            cursor: none;
         }
 
         .loading {
@@ -279,6 +343,26 @@
                 width: 100%;
                 max-width: 250px;
             }
+
+            .tool-controls {
+                flex-direction: column;
+                gap: 15px;
+                align-items: center;
+            }
+
+            .tool-group {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .brush-size, .tolerance-control {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .brush-size input, .tolerance-control input {
+                width: 150px;
+            }
         }
 
         .progress-bar {
@@ -323,6 +407,45 @@
             </button>
         </div>
 
+        <!-- Tool Controls -->
+        <div class="tool-controls" id="toolControls" style="display: none;">
+            <div class="tool-group">
+                <button class="tool-btn active" id="autoModeBtn" onclick="setMode('auto')">
+                    🤖 Auto
+                </button>
+                <button class="tool-btn" id="manualModeBtn" onclick="setMode('manual')">
+                    ✏️ Manual
+                </button>
+            </div>
+
+            <div class="tool-group" id="manualTools" style="display: none;">
+                <button class="tool-btn active" id="penBtn" onclick="setTool('pen')">
+                    🖊️ Pen
+                </button>
+                <button class="tool-btn" id="eraserBtn" onclick="setTool('eraser')">
+                    🧽 Eraser
+                </button>
+                <button class="tool-btn" id="undoBtn" onclick="undo()" disabled>
+                    ↶ Undo
+                </button>
+                <button class="tool-btn" id="redoBtn" onclick="redo()" disabled>
+                    ↷ Redo
+                </button>
+            </div>
+
+            <div class="brush-size">
+                <label>Brush Size:</label>
+                <input type="range" id="brushSize" min="5" max="50" value="20" onchange="updateBrushSize()">
+                <span id="brushSizeValue">20px</span>
+            </div>
+
+            <div class="tolerance-control">
+                <label>Tolerance:</label>
+                <input type="range" id="toleranceSlider" min="10" max="100" value="50" onchange="updateTolerance()">
+                <span id="toleranceValue">50</span>
+            </div>
+        </div>
+
         <div class="progress-bar" id="progressBar">
             <div class="progress-fill" id="progressFill"></div>
         </div>
@@ -351,6 +474,20 @@
         let originalImage = null;
         let processedCanvas = null;
         let processedImageData = null; // Simpan hasil background removal untuk download
+
+        // Manual editing variables
+        let currentMode = 'auto'; // 'auto' or 'manual'
+        let currentTool = 'pen'; // 'pen' or 'eraser'
+        let brushSize = 20;
+        let tolerance = 50;
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let history = []; // For undo/redo
+        let historyIndex = -1;
+
+        // Canvas contexts for manual editing
+        let resultCtx = null;
 
         // Drag and drop handlers
         function dragOverHandler(ev) {
@@ -385,9 +522,20 @@
             // Reset state untuk gambar baru
             processedCanvas = null;
             processedImageData = null;
+            currentMode = 'auto';
+            history = [];
+            historyIndex = -1;
+            
             document.getElementById('downloadBtn').disabled = true;
             document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('toolControls').style.display = 'none';
             document.getElementById('previewArea').style.display = 'none';
+            
+            // Reset tool states
+            setMode('auto');
+            setTool('pen');
+            updateBrushSize();
+            updateTolerance();
 
             // Validasi file
             if (!file.type.startsWith('image/')) {
@@ -443,6 +591,157 @@
             document.getElementById('previewArea').style.display = 'grid';
         }
 
+        // Mode switching functions
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('autoModeBtn').classList.toggle('active', mode === 'auto');
+            document.getElementById('manualModeBtn').classList.toggle('active', mode === 'manual');
+            document.getElementById('manualTools').style.display = mode === 'manual' ? 'flex' : 'none';
+            
+            const resultCanvas = document.getElementById('resultCanvas');
+            if (mode === 'manual') {
+                resultCanvas.classList.add('drawing');
+                setupManualEditing();
+            } else {
+                resultCanvas.classList.remove('drawing');
+                removeManualEditing();
+            }
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.getElementById('penBtn').classList.toggle('active', tool === 'pen');
+            document.getElementById('eraserBtn').classList.toggle('active', tool === 'eraser');
+        }
+
+        function updateBrushSize() {
+            brushSize = document.getElementById('brushSize').value;
+            document.getElementById('brushSizeValue').textContent = brushSize + 'px';
+        }
+
+        function updateTolerance() {
+            tolerance = document.getElementById('toleranceSlider').value;
+            document.getElementById('toleranceValue').textContent = tolerance;
+        }
+
+        function setupManualEditing() {
+            const resultCanvas = document.getElementById('resultCanvas');
+            resultCtx = resultCanvas.getContext('2d');
+            
+            // Add event listeners for drawing
+            resultCanvas.addEventListener('mousedown', startDrawing);
+            resultCanvas.addEventListener('mousemove', draw);
+            resultCanvas.addEventListener('mouseup', stopDrawing);
+            resultCanvas.addEventListener('mouseout', stopDrawing);
+            
+            // Touch events for mobile
+            resultCanvas.addEventListener('touchstart', startDrawing);
+            resultCanvas.addEventListener('touchmove', draw);
+            resultCanvas.addEventListener('touchend', stopDrawing);
+        }
+
+        function removeManualEditing() {
+            const resultCanvas = document.getElementById('resultCanvas');
+            
+            // Remove event listeners
+            resultCanvas.removeEventListener('mousedown', startDrawing);
+            resultCanvas.removeEventListener('mousemove', draw);
+            resultCanvas.removeEventListener('mouseup', stopDrawing);
+            resultCanvas.removeEventListener('mouseout', stopDrawing);
+            resultCanvas.removeEventListener('touchstart', startDrawing);
+            resultCanvas.removeEventListener('touchmove', draw);
+            resultCanvas.removeEventListener('touchend', stopDrawing);
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = e.target.getBoundingClientRect();
+            lastX = (e.clientX || e.touches[0].clientX) - rect.left;
+            lastY = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            // Save current state for undo
+            saveState();
+            
+            e.preventDefault();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = e.target.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            resultCtx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+            resultCtx.strokeStyle = currentTool === 'eraser' ? 'rgba(255,255,255,1)' : 'rgba(0,0,0,1)';
+            resultCtx.lineWidth = brushSize;
+            resultCtx.lineCap = 'round';
+            resultCtx.lineJoin = 'round';
+            
+            resultCtx.beginPath();
+            resultCtx.moveTo(lastX, lastY);
+            resultCtx.lineTo(x, y);
+            resultCtx.stroke();
+            
+            lastX = x;
+            lastY = y;
+            
+            e.preventDefault();
+        }
+
+        function stopDrawing(e) {
+            if (isDrawing) {
+                isDrawing = false;
+                updateUndoRedoButtons();
+            }
+        }
+
+        function saveState() {
+            const resultCanvas = document.getElementById('resultCanvas');
+            const imageData = resultCtx.getImageData(0, 0, resultCanvas.width, resultCanvas.height);
+            
+            // Remove old history after current index
+            history = history.slice(0, historyIndex + 1);
+            
+            // Add new state
+            history.push(new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height));
+            historyIndex++;
+            
+            // Limit history to 20 states
+            if (history.length > 20) {
+                history.shift();
+                historyIndex--;
+            }
+            
+            updateUndoRedoButtons();
+            
+            // Update processedImageData for download
+            processedImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                const resultCanvas = document.getElementById('resultCanvas');
+                resultCtx.putImageData(history[historyIndex], 0, 0);
+                updateUndoRedoButtons();
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                const resultCanvas = document.getElementById('resultCanvas');
+                resultCtx.putImageData(history[historyIndex], 0, 0);
+                updateUndoRedoButtons();
+            }
+        }
+
+        function updateUndoRedoButtons() {
+            document.getElementById('undoBtn').disabled = historyIndex <= 0;
+            document.getElementById('redoBtn').disabled = historyIndex >= history.length - 1;
+        }
+
         function removeBackground() {
             if (!originalImage) return;
 
@@ -452,9 +751,10 @@
             setTimeout(() => {
                 try {
                     processImageWithChromaKey();
-                    showSuccess('Background berhasil dihapus!');
+                    showSuccess('Background berhasil dihapus! Klik Manual untuk edit lebih lanjut');
                     document.getElementById('downloadBtn').disabled = false;
                     document.getElementById('downloadBtn').style.display = 'inline-block';
+                    document.getElementById('toolControls').style.display = 'flex';
                 } catch (error) {
                     showError('Terjadi kesalahan saat memproses gambar.');
                     console.error(error);
@@ -468,6 +768,7 @@
         function processImageWithChromaKey() {
             const resultCanvas = document.getElementById('resultCanvas');
             const ctx = resultCanvas.getContext('2d');
+            resultCtx = ctx; // Set global context for manual editing
             
             // Set canvas size sama dengan original
             const originalCanvas = document.getElementById('originalCanvas');
@@ -481,70 +782,210 @@
             const imageData = ctx.getImageData(0, 0, resultCanvas.width, resultCanvas.height);
             const data = imageData.data;
             
-            // Simple background removal algorithm
-            // Deteksi warna yang dominan di tepi sebagai background
-            const cornerPixels = [];
-            const w = resultCanvas.width;
-            const h = resultCanvas.height;
+            // Enhanced background removal algorithm
+            const processedData = enhancedBackgroundRemoval(data, resultCanvas.width, resultCanvas.height);
             
-            // Sample pixels dari keempat sudut dan tepi
+            // Apply processed data
+            for (let i = 0; i < data.length; i++) {
+                data[i] = processedData[i];
+            }
+            
+            // Apply processed image data
+            ctx.putImageData(imageData, 0, 0);
+            
+            // Simpan hasil imageData sebelum checkerboard untuk download
+            processedImageData = new ImageData(new Uint8ClampedArray(data), imageData.width, imageData.height);
+            processedCanvas = resultCanvas;
+            
+            // Initialize history for undo/redo
+            history = [new ImageData(new Uint8ClampedArray(data), imageData.width, imageData.height)];
+            historyIndex = 0;
+            
+            // Add checkerboard background to show transparency
+            addCheckerboardBackground();
+        }
+
+        function enhancedBackgroundRemoval(data, width, height) {
+            const processedData = new Uint8ClampedArray(data);
+            
+            // Step 1: Detect background color with improved sampling
+            const bgColor = detectBackgroundColor(data, width, height);
+            
+            // Step 2: Create mask with improved edge detection
+            const mask = createBackgroundMask(data, width, height, bgColor);
+            
+            // Step 3: Apply morphological operations to clean up the mask
+            const cleanedMask = morphologicalOperations(mask, width, height);
+            
+            // Step 4: Apply feathering for smooth edges
+            const featheredMask = applyFeathering(cleanedMask, data, width, height);
+            
+            // Step 5: Apply mask to create final result
+            for (let i = 0; i < processedData.length; i += 4) {
+                const alpha = featheredMask[i / 4];
+                processedData[i + 3] = alpha; // Set alpha channel
+            }
+            
+            return processedData;
+        }
+
+        function detectBackgroundColor(data, width, height) {
+            const samples = [];
+            
+            // Sample from corners and edges with more points
             const samplePoints = [
-                [0, 0], [w-1, 0], [0, h-1], [w-1, h-1], // corners
-                [Math.floor(w/2), 0], [Math.floor(w/2), h-1], // top and bottom center
-                [0, Math.floor(h/2)], [w-1, Math.floor(h/2)] // left and right center
+                [0, 0], [width-1, 0], [0, height-1], [width-1, height-1], // corners
+                [Math.floor(width/4), 0], [Math.floor(3*width/4), 0], // top edge
+                [Math.floor(width/4), height-1], [Math.floor(3*width/4), height-1], // bottom edge
+                [0, Math.floor(height/4)], [0, Math.floor(3*height/4)], // left edge
+                [width-1, Math.floor(height/4)], [width-1, Math.floor(3*height/4)], // right edge
+                [Math.floor(width/2), Math.floor(height/2)] // center (sometimes useful)
             ];
             
             for (let point of samplePoints) {
-                const x = point[0];
-                const y = point[1];
-                const idx = (y * w + x) * 4;
-                cornerPixels.push({
+                const x = Math.max(0, Math.min(width-1, point[0]));
+                const y = Math.max(0, Math.min(height-1, point[1]));
+                const idx = (y * width + x) * 4;
+                samples.push({
                     r: data[idx],
                     g: data[idx + 1],
                     b: data[idx + 2]
                 });
             }
             
-            // Hitung rata-rata warna background
-            const avgBg = {
-                r: cornerPixels.reduce((sum, p) => sum + p.r, 0) / cornerPixels.length,
-                g: cornerPixels.reduce((sum, p) => sum + p.g, 0) / cornerPixels.length,
-                b: cornerPixels.reduce((sum, p) => sum + p.b, 0) / cornerPixels.length
+            // Calculate weighted average (give more weight to corners)
+            let totalWeight = 0;
+            let avgR = 0, avgG = 0, avgB = 0;
+            
+            for (let i = 0; i < samples.length; i++) {
+                const weight = i < 4 ? 2 : 1; // Corners get double weight
+                avgR += samples[i].r * weight;
+                avgG += samples[i].g * weight;
+                avgB += samples[i].b * weight;
+                totalWeight += weight;
+            }
+            
+            return {
+                r: Math.round(avgR / totalWeight),
+                g: Math.round(avgG / totalWeight),
+                b: Math.round(avgB / totalWeight)
             };
+        }
+
+        function createBackgroundMask(data, width, height, bgColor) {
+            const mask = new Uint8Array(width * height);
             
-            // Remove background
-            const tolerance = 50; // Adjust this for sensitivity
-            
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i + 1];
-                const b = data[i + 2];
-                
-                // Calculate distance from background color
-                const distance = Math.sqrt(
-                    Math.pow(r - avgBg.r, 2) +
-                    Math.pow(g - avgBg.g, 2) +
-                    Math.pow(b - avgBg.b, 2)
-                );
-                
-                // If pixel is similar to background color, make it transparent
-                if (distance < tolerance) {
-                    data[i + 3] = 0; // Set alpha to 0 (transparent)
-                } else {
-                    // Edge detection and feathering for better results
-                    const alpha = Math.min(255, Math.max(0, (distance - tolerance/2) * 5));
-                    data[i + 3] = alpha;
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = (y * width + x) * 4;
+                    const r = data[idx];
+                    const g = data[idx + 1];
+                    const b = data[idx + 2];
+                    
+                    // Calculate color distance
+                    const distance = Math.sqrt(
+                        Math.pow(r - bgColor.r, 2) +
+                        Math.pow(g - bgColor.g, 2) +
+                        Math.pow(b - bgColor.b, 2)
+                    );
+                    
+                    // Create mask (255 = background, 0 = foreground)
+                    mask[y * width + x] = distance <= tolerance ? 255 : 0;
                 }
             }
             
-            // Apply processed image data
-            ctx.putImageData(imageData, 0, 0);
-            // Simpan hasil imageData sebelum checkerboard untuk download
-            processedImageData = new ImageData(new Uint8ClampedArray(imageData.data), imageData.width, imageData.height);
-            processedCanvas = resultCanvas;
+            return mask;
+        }
+
+        function morphologicalOperations(mask, width, height) {
+            // Simple morphological closing to fill small holes
+            const cleaned = new Uint8Array(mask);
             
-            // Add checkerboard background to show transparency
-            addCheckerboardBackground();
+            // Dilate then erode (closing operation)
+            const dilated = dilateMask(mask, width, height);
+            const eroded = erodeMask(dilated, width, height);
+            
+            return eroded;
+        }
+
+        function dilateMask(mask, width, height) {
+            const result = new Uint8Array(mask);
+            
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    const idx = y * width + x;
+                    if (mask[idx] === 255) {
+                        // Set 3x3 neighborhood to 255
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const nidx = (y + dy) * width + (x + dx);
+                                result[nidx] = 255;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        function erodeMask(mask, width, height) {
+            const result = new Uint8Array(mask);
+            
+            for (let y = 1; y < height - 1; y++) {
+                for (let x = 1; x < width - 1; x++) {
+                    const idx = y * width + x;
+                    if (mask[idx] === 0) {
+                        // Set 3x3 neighborhood to 0
+                        for (let dy = -1; dy <= 1; dy++) {
+                            for (let dx = -1; dx <= 1; dx++) {
+                                const nidx = (y + dy) * width + (x + dx);
+                                result[nidx] = 0;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        function applyFeathering(mask, data, width, height) {
+            const result = new Uint8Array(width * height);
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    
+                    if (mask[idx] === 255) {
+                        // Check if this is an edge pixel
+                        let isEdge = false;
+                        for (let dy = -1; dy <= 1 && !isEdge; dy++) {
+                            for (let dx = -1; dx <= 1 && !isEdge; dx++) {
+                                const nx = x + dx;
+                                const ny = y + dy;
+                                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                    const nidx = ny * width + nx;
+                                    if (mask[nidx] === 0) {
+                                        isEdge = true;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (isEdge) {
+                            // Apply feathering to edge pixels
+                            result[idx] = Math.max(0, 255 - tolerance);
+                        } else {
+                            result[idx] = 0; // Fully transparent
+                        }
+                    } else {
+                        result[idx] = 255; // Fully opaque
+                    }
+                }
+            }
+            
+            return result;
         }
 
         function addCheckerboardBackground() {
@@ -576,7 +1017,7 @@
         }
 
         function downloadResult() {
-            if (!processedCanvas || !processedImageData) return;
+            if (!processedCanvas) return;
             
             // Buat canvas baru untuk download hasil transparan
             const downloadCanvas = document.createElement('canvas');
@@ -584,8 +1025,15 @@
             downloadCanvas.width = processedCanvas.width;
             downloadCanvas.height = processedCanvas.height;
             
-            // Gunakan processedImageData yang sudah disimpan (hasil background removal tanpa checkerboard)
-            downloadCtx.putImageData(processedImageData, 0, 0);
+            // Gunakan hasil editing terakhir dari history atau processedImageData
+            if (history.length > 0 && historyIndex >= 0) {
+                downloadCtx.putImageData(history[historyIndex], 0, 0);
+            } else if (processedImageData) {
+                downloadCtx.putImageData(processedImageData, 0, 0);
+            } else {
+                // Fallback: ambil dari canvas result
+                downloadCtx.drawImage(processedCanvas, 0, 0);
+            }
             
             // Download sebagai PNG transparan
             downloadCanvas.toBlob(function(blob) {
