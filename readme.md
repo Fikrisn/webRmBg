@@ -118,7 +118,7 @@ Output: profil-transparent.png
 Hasil: Foto profil dengan background transparan
 ```
 
-## 🛠️ Troubleshooting
+## 🛠️ Troubleshooting....
 
 ### Masalah Umum dan Solusi
 
