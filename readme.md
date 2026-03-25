@@ -35,7 +35,7 @@ Aplikasi web sederhana dan cepat untuk menghapus background gambar secara otomat
 - **Storage**: 50MB untuk file aplikasi
 - **Resolusi**: 1024x768 atau lebih tinggi
 
-## 🚀 Instalasi & Penggunaan
+## 🚀 Instalasi & Penggunaan....
 
 ### Cara Menjalankan
 
