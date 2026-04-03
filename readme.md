@@ -1,4 +1,4 @@
-# 🎨 Background Remover Web cuy
+# 🎨 Background Remover Web cuy 👑
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)](https://html.spec.whatwg.org/)
