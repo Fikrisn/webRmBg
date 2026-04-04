@@ -244,7 +244,6 @@ copies or substantial portions of the Software.
 
 - **Author**: Fikrisn
 - **GitHub**: [@Fikrisn](https://github.com/Fikrisn)
-- **Email**: fikrisn@example.com
 - **Project Link**: [https://github.com/Fikrisn/webRmBg](https://github.com/Fikrisn/webRmBg)
 
 ## 🙏 Acknowledgments
